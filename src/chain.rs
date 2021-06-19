@@ -1,7 +1,7 @@
 use crate::block::Block;
 
 pub struct Blockchain {
-    blocks: Vec<Block>,
+    pub blocks: Vec<Block>,
 }
 
 fn genesis() -> Block {
@@ -19,9 +19,5 @@ impl Blockchain {
         let prev_block = self.blocks.last().unwrap();
         let new_block = Block::new(data, &prev_block.hash);
         self.blocks.push(new_block);
-    }
-
-    pub fn blocks(&self) -> &[Block] {
-        &self.blocks
     }
 }
