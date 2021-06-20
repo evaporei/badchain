@@ -10,17 +10,20 @@ fn hash_to_str(hash_bytes: &[u8]) -> String {
     output
 }
 
-fn main() {
-    let mut chain = Blockchain::new();
+fn main() -> anyhow::Result<()> {
+    let mut chain = Blockchain::new()?;
 
-    chain.add_block("Send 1 BTC to Ivan");
-    chain.add_block("Send 2 more BTC to Ivan");
+    chain.add_block("Send 1 BTC to Ivan")?;
+    chain.add_block("Send 2 more BTC to Ivan")?;
 
-    for block in chain.blocks {
+    for block in chain {
+        let block = block?;
         println!("Prev. hash: {:?}", block.prev_block_hash);
         println!("Data: {}", from_utf8(&block.data).unwrap());
         println!("Hash: {}", hash_to_str(&block.hash));
         let pow = ProofOfWork::new(block);
         println!("PoW: {}", pow.validate());
     }
+
+    Ok(())
 }
