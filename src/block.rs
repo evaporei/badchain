@@ -1,6 +1,8 @@
 use crate::pow::{self, ProofOfWork};
+use serde::{Deserialize, Serialize};
 use std::time::SystemTime;
 
+#[derive(Serialize, Deserialize)]
 pub struct Block {
     pub timestamp: u64,
     pub data: Vec<u8>,
