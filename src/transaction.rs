@@ -1,11 +1,11 @@
 use crate::utils::sha256;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Transaction {
     pub id: Vec<u8>,
-    inputs: Vec<TrxInput>,
-    outputs: Vec<TrxOutput>,
+    pub inputs: Vec<TrxInput>,
+    pub outputs: Vec<TrxOutput>,
 }
 
 // amount of the reward, it will be dynamic in the future
@@ -45,17 +45,35 @@ impl Transaction {
         let hash = sha256(&encoded_trx);
         self.id = hash;
     }
+
+    pub fn is_coinbase(&self) -> bool {
+        self.inputs.len() == 1
+            && self.inputs[0].trx_id.is_empty()
+            && self.inputs[0].output_idx == -1 // TODO: fix bad state check, don't use -1
+    }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct TrxInput {
-    trx_id: Vec<u8>,
-    output_idx: isize,
+    pub trx_id: Vec<u8>,
+    pub output_idx: isize,
     script_sig: String,
 }
 
-#[derive(Serialize, Deserialize)]
+impl TrxInput {
+    pub fn can_unlock_output_with(&self, unlocking_data: &str) -> bool {
+        self.script_sig == unlocking_data
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone)]
 pub struct TrxOutput {
     value: usize,
     script_pub_key: String,
+}
+
+impl TrxOutput {
+    pub fn can_be_unlocked_with(&self, unlocking_data: &str) -> bool {
+        self.script_pub_key == unlocking_data
+    }
 }

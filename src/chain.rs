@@ -1,7 +1,10 @@
 use crate::block::Block;
 use crate::transaction::Transaction;
+use crate::utils::hash_to_str;
 use anyhow::Context;
+use std::collections::HashMap;
 
+#[derive(Clone)]
 pub struct Blockchain {
     last_block_hash: Vec<u8>,
     db: sled::Db,
@@ -62,6 +65,53 @@ impl Blockchain {
         self.last_block_hash = new_block.hash;
 
         Ok(())
+    }
+
+    pub fn find_unspent_transactions(&self, address: &str) -> anyhow::Result<Vec<Transaction>> {
+        let mut unspent_trxs = vec![];
+        let mut spent_trxs: HashMap<String, Vec<isize>> = HashMap::new();
+        let chain_it = self.clone().into_iter(); // cheap clone, the data is all in the database
+
+        for block in chain_it {
+            let block = block?;
+            for trx in block.transactions {
+                let trx_id = hash_to_str(&trx.id);
+
+                'outputs: loop {
+                    for (output_idx, output) in trx.outputs.iter().enumerate() {
+                        // was the output sent?
+                        if let Some(spent_outputs) = spent_trxs.get(&trx_id) {
+                            for spent_output in spent_outputs.iter() {
+                                if *spent_output == output_idx as isize {
+                                    continue 'outputs;
+                                }
+                            }
+                        }
+
+                        if output.can_be_unlocked_with(address) {
+                            unspent_trxs.push(trx.clone());
+                        }
+                    }
+
+                    if !trx.is_coinbase() {
+                        for input in trx.inputs.iter() {
+                            if input.can_unlock_output_with(address) {
+                                let input_trx_id = hash_to_str(&input.trx_id);
+                                spent_trxs.get_mut(&input_trx_id).map(|spent_trx| {
+                                    spent_trx.push(input.output_idx);
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+
+            if block.prev_block_hash.is_empty() {
+                break;
+            }
+        }
+
+        Ok(unspent_trxs)
     }
 }
 
