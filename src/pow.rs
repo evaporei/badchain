@@ -1,4 +1,5 @@
 use crate::block::Block;
+use crate::utils::hash_to_str;
 use crate::utils::sha256;
 use std::convert::TryInto;
 
@@ -27,7 +28,7 @@ impl ProofOfWork {
         self.block
             .prev_block_hash
             .iter()
-            .chain(self.block.data.iter())
+            .chain(self.block.hash_transactions().iter())
             .cloned()
             .chain(self.block.timestamp.to_string().bytes())
             .chain(TARGET_BITS.to_string().bytes())
@@ -40,15 +41,11 @@ impl ProofOfWork {
         let mut nonce = 0;
         let mut hash: Vec<u8> = vec![];
 
-        println!(
-            "Mining the block containing {}",
-            std::str::from_utf8(&self.block.data).unwrap()
-        );
+        println!("Mining a new block");
 
         while nonce < MAX_NONCE {
             let data = self.prepare_data(nonce);
             hash = sha256(&data);
-            // println!("{:?}", hash);
 
             let mut arr: [u8; 8] = [0; 8];
             arr.copy_from_slice(&hash[0..8]);
@@ -60,6 +57,8 @@ impl ProofOfWork {
                 nonce += 1;
             }
         }
+
+        println!("{}", hash_to_str(&hash));
 
         Data { nonce, hash }
     }

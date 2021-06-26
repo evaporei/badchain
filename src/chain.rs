@@ -1,4 +1,5 @@
 use crate::block::Block;
+use crate::transaction::Transaction;
 use anyhow::Context;
 
 pub struct Blockchain {
@@ -6,33 +7,40 @@ pub struct Blockchain {
     db: sled::Db,
 }
 
-fn create_genesis() -> Block {
-    Block::new("Genesis Block", &[])
+const GENESIS_COINBASE_DATA: &str =
+    "The Times 03/Jan/2009 Chancellor on brink of second bailout for banks";
+
+pub fn create_genesis(coinbase: Transaction) -> Block {
+    Block::new(vec![coinbase], &[])
 }
 
-const DATABASE_FILE_NAME: &str = "/tmp/badchain-db";
+pub const DATABASE_FILE_NAME: &str = "/tmp/badchain-db";
+
+pub fn setup_database(address: &str) -> anyhow::Result<()> {
+    let db = sled::open(DATABASE_FILE_NAME).context("Failed to open database file")?;
+
+    let coinbase_trx = Transaction::new_coinbase(address, GENESIS_COINBASE_DATA);
+    let genesis = create_genesis(coinbase_trx);
+    db.insert(
+        genesis.hash.clone(),
+        bincode::serialize(&genesis).context("Failed to serialize genesis block")?,
+    )
+    .context("Failed to insert genesis block in database")?;
+    db.insert("last_block_hash", genesis.hash)
+        .context("Failed to insert last block hash in database")?;
+
+    Ok(())
+}
 
 impl Blockchain {
     pub fn new() -> anyhow::Result<Self> {
         let db = sled::open(DATABASE_FILE_NAME).context("Failed to open database file")?;
 
-        let last_block_hash = match db
+        let last_block_hash = db
             .get("last_block_hash")
             .context("Failed to get last hash from database")?
-        {
-            Some(last_block_hash) => last_block_hash.to_vec(),
-            _ => {
-                let genesis = create_genesis();
-                db.insert(
-                    genesis.hash.clone(),
-                    bincode::serialize(&genesis).context("Failed to serialize genesis block")?,
-                )
-                .context("Failed to insert genesis block in database")?;
-                db.insert("last_block_hash", genesis.hash.clone())
-                    .context("Failed to insert last block hash in database")?;
-                genesis.hash
-            }
-        };
+            .unwrap() // safe because fn setup_database is called first
+            .to_vec();
 
         Ok(Self {
             last_block_hash,
@@ -40,8 +48,8 @@ impl Blockchain {
         })
     }
 
-    pub fn add_block(&mut self, data: &str) -> anyhow::Result<()> {
-        let new_block = Block::new(data, &self.last_block_hash);
+    pub fn mine_block(&mut self, transactions: Vec<Transaction>) -> anyhow::Result<()> {
+        let new_block = Block::new(transactions, &self.last_block_hash);
         let serialized = bincode::serialize(&new_block).context("Failed to serialize new block")?;
 
         let mut db_batch = sled::Batch::default();

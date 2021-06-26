@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
 pub struct Transaction {
-    id: Vec<u8>,
+    pub id: Vec<u8>,
     inputs: Vec<TrxInput>,
     outputs: Vec<TrxOutput>,
 }
