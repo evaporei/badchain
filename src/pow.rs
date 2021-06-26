@@ -1,6 +1,5 @@
 use crate::block::Block;
-use sha2::digest::Digest;
-use sha2::Sha256;
+use crate::utils::sha256;
 use std::convert::TryInto;
 
 const TARGET_BITS: u64 = 18;
@@ -14,12 +13,6 @@ pub struct ProofOfWork {
 pub struct Data {
     pub nonce: u64,
     pub hash: Vec<u8>,
-}
-
-pub fn sha256(data: &[u8]) -> Vec<u8> {
-    let mut hasher = Sha256::new();
-    hasher.update(data);
-    hasher.finalize()[..].to_vec()
 }
 
 impl ProofOfWork {
